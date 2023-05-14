@@ -18,9 +18,10 @@ import subprocess
 # CONFIG #
 ##########
 
-first_chapter = "https://parahumans.wordpress.com/2011/06/11/1-1/"
+TITLE = "Worm"
+FIRST_CHAPTER = "https://parahumans.wordpress.com/2011/06/11/1-1/"
 
-DATA = pathlib.Path("data/Worm/")
+DATA = pathlib.Path(f"data/{TITLE}/")
 
 #############
 # FUNCTIONS #
@@ -49,7 +50,7 @@ chapter = 0
 skip_two = False
 
 # Repeat until all pages are downloaded
-next_page = first_chapter
+next_page = FIRST_CHAPTER
 while True:
 
     # Get the contents of the webpage
@@ -96,7 +97,7 @@ while True:
             # Ignore some meta text stuff
             if "Next Chapter" in p.text or "Last Chapter" in p.text:
                 continue
-            elif p.text.startswith("Brief note from the author:"):
+            elif TITLE == "Worm" and p.text.startswith("Brief note from the author:"):
                 skip_two = True
                 continue
             elif skip_two:
@@ -121,7 +122,7 @@ while True:
 #######################################
 
 # Create the mega html document
-mega_html = DATA.parent / "Worm.html"
+mega_html = DATA.parent / f"{TITLE}.html"
 with open(mega_html, "w", encoding="utf8") as f:
 
     # Get all the files to combine together
@@ -136,14 +137,14 @@ with open(mega_html, "w", encoding="utf8") as f:
             f.write("\n")
 
 # Create the metadata file
-meta = DATA.parent / "Worm_meta.txt"
+meta = DATA.parent / f"{TITLE}_meta.txt"
 with open(meta, "w", encoding="utf8") as f:
-    f.write(textwrap.dedent("""\
+    f.write(textwrap.dedent(f"""\
         ---
-        title: Worm
+        title: {TITLE}
         author: John "Wildbow" McCrae
         language: en-US
         ---"""))
 
 # Call pandoc to combine the data together
-subprocess.run(f"pandoc {mega_html} -o Worm.epub --metadata-file={meta}", shell=True)
+subprocess.run(f"pandoc {mega_html} -o {TITLE}.epub --metadata-file={meta}", shell=True)
