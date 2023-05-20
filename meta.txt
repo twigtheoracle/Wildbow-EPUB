@@ -1,0 +1,5 @@
+---
+title: Worm
+author: John "Wildbow" McCrae
+language: en-US
+---
