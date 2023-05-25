@@ -17,11 +17,17 @@ import subprocess
 # CONFIG #
 ##########
 
-first_chapter = "https://parahumans.wordpress.com/2011/06/11/1-1/"
-# first_chapter = "https://parahumans.wordpress.com/2013/03/16/interlude-19-y/"
+BOOK_TITLE = "Pact"
+DATA = pathlib.Path(f"data/{BOOK_TITLE}")
 
-TITLE = "Worm"
-DATA = pathlib.Path(f"data/{TITLE}")
+# NOTE: Pale is not yet finished
+first_chapters = {
+    "Worm": "https://parahumans.wordpress.com/2011/06/11/1-1/",
+    "Pact": "https://pactwebserial.wordpress.com/2013/12/17/bonds-1-1/",
+    "Twig": "https://twigserial.wordpress.com/2014/12/24/taking-root-1-1/",
+    "Ward": "https://www.parahumans.net/2017/10/21/glow-worm-0-1/",
+    "Pale": "https://palewebserial.wordpress.com/2020/05/05/blood-run-cold-0-0/",
+}
 
 # Set to True if you want to skip already downloaded files
 skip_downloaded = False
@@ -30,11 +36,91 @@ skip_downloaded = False
 # FUNCTIONS #
 #############
 
-# Nothing :(
+def modify_interlude_title(book_title: str, chapter_title: str) -> str:
+    """TODO
+
+    Args:
+        book_title: The title of the book. Should always be the parameter BOOK_TITLE but who knows
+        chapter_title: The title of the chapter contained on one webpage. If it is a normal title,
+            it will have the format of f"{arc name} {arc #}.{chapter #}". If it is an interlude,
+            it varies quite a bit
+
+    Returns:
+        The name of the chapter, depending on if it is a normal chapter or an interlude chapter
+    """
+    if book_title == "Worm":
+        if "Interlude" in chapter_title:
+            return "Interlude"
+        return chapter_title
+
+    elif book_title == "Pact":
+        if "Pages" in chapter_title:
+            return "Pages"
+        if "Histories" in chapter_title:
+            return "Histories"
+        # The numbering is messed up for this chapter
+        if chapter_title == "Subordination 6.12":
+            return "Subordination 6.11"
+        return chapter_title
+
+def update_arc_chapter(
+    book_title: str, chapter_title: str, current_arc: int, current_chapter: int) -> (int, int):
+    """TODO
+
+    Args:
+        book_title: The title of the book. Should always be the parameter BOOK_TITLE but who knows
+        chapter_title: The title of the chapter contained on one webpage. If it is a normal title,
+            it will have the format of f"{arc name} {arc #}.{chapter #}". If it is an interlude,
+            it varies quite a bit
+
+    Returns:
+        The name of the chapter, depending on if it is a normal chapter or an interlude chapter
+    """
+
+    # Process Worm
+    if book_title == "Worm":
+
+        # The "e." chapters are the epilogue chapters
+        if "e." in title:
+            if current_arc != 31:
+                return 31, 1
+            else:
+                return 31, current_chapter + 1
+        if chapter_title == "Interlude":
+            return current_arc, current_chapter + 1
+
+        # Get the current arc number from the title
+        arc_number = int(chapter_title.split(" ")[-1].split(".")[0])
+
+        if arc_number != current_arc:
+            return arc_number, 1
+        else:
+            return current_arc, current_chapter + 1
+
+    # Process Pact
+    elif book_title == "Pact":
+        
+        # The epilogue chapter is obviously the epilogue (only one in Pact)
+        if "Epilogue" in title:
+            return 17, 1
+        if chapter_title == "Pages" or chapter_title == "Histories":
+            return current_arc, current_chapter + 1
+
+        # Get the current arc number from the title
+        arc_number = int(chapter_title.split(" ")[-1].split(".")[0])
+
+        if arc_number != current_arc:
+            return arc_number, 1
+        else:
+            return current_arc, current_chapter + 1
 
 ########
 # CODE #
 ########
+
+# Verify the input BOOK_TITLE is valid
+if not BOOK_TITLE in first_chapters.keys():
+    raise ValueError
 
 ################################
 # GET ALL THE INDIVIDUAL PAGES #
@@ -55,7 +141,7 @@ chapter = 0
 n = 0
 
 # Repeat until all pages are downloaded
-next_page = first_chapter
+next_page = first_chapters[BOOK_TITLE]
 while True:
 
     # Get the contents of the webpage
@@ -67,25 +153,24 @@ while True:
 
     # Get the title of the chapter
     for h1 in soup.findAll("h1"):
+
+        # Ignore some other header stuff
+        if "navigation" in h1.text:
+            continue
+        
+        # Special Pact override
+        if BOOK_TITLE == "Pact" and arc == 1 and chapter == 0:
+            title = "Bonds 1.1"
+            break
+
         title = h1.text
 
-    # If the title is an interlude, we don't care about the interlude number
-    if "Interlude" in title:
-        title = "Interlude"
+    # If the title of the chapter is an interlude, then some additional modifications have to be
+    # done.
+    title = modify_interlude_title(BOOK_TITLE, title)
 
-    # Update the arc number if necessary
-    if title != "Interlude" and ("e." in title or int(title.split(" ")[1].split(".")[0]) != arc):
-        if "e." in title:
-            if arc != 31:
-                arc = 31
-                chapter = 1
-            else:
-                chapter += 1
-        else:
-            arc = int(title.split(" ")[1].split(".")[0])
-            chapter = 1
-    else:
-        chapter += 1
+    # Based on the title of the chapter, the arc/chapter numbers may need to be updated
+    arc, chapter = update_arc_chapter(BOOK_TITLE, title, arc, chapter)
 
     # Write the contents to a local file
     fn = f"{str(arc).zfill(2)}.{str(chapter).zfill(2)} {title}.md"
@@ -129,6 +214,13 @@ while True:
                     else:
                         text += str(fragment)
 
+                # If the text contains only the character "■", we leave it as is. This is typically
+                # used in the middle of a chapter to denote a major setting shift (usually
+                # flashback kind of stuff) or a POV change (like in some interludes)
+                if text.strip() == "■":
+                    f.write(text + "\n\n")
+                    continue
+
                 # Replace double spaces with single spaces
                 text = text.replace("\xa0", " ")
                 text = text.replace("  ", " ")
@@ -170,7 +262,7 @@ while True:
 #######################################
 
 # Create the mega md document
-mgra_md = DATA.parent / "Worm.md"
+mgra_md = DATA.parent / f"{BOOK_TITLE}.md"
 with open(mgra_md, "w", encoding="utf8") as f:
 
     # Get all the files to combine together
@@ -185,14 +277,14 @@ with open(mgra_md, "w", encoding="utf8") as f:
             f.write("\n")
 
 # Create the metadata file
-meta = DATA.parent / "Worm_meta.txt"
+meta = DATA.parent / f"{BOOK_TITLE}_meta.txt"
 with open(meta, "w", encoding="utf8") as f:
-    f.write(textwrap.dedent("""\
+    f.write(textwrap.dedent(f"""
         ---
-        title: Worm
+        title: {BOOK_TITLE}
         author: John "Wildbow" McCrae
         language: en-US
         ---"""))
 
 # Call pandoc to combine the data together
-subprocess.run(f"pandoc {mgra_md} -o Worm.epub --metadata-file={meta}", shell=True)
+subprocess.run(f"pandoc {mgra_md} -o {BOOK_TITLE}.epub --metadata-file={meta}", shell=True)
