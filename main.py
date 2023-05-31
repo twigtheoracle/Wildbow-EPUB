@@ -59,8 +59,11 @@ def modify_interlude_title(book_title: str, chapter_title: str) -> str:
         if "Histories" in chapter_title:
             return "Histories"
         # The numbering is messed up for this chapter
+        # It actually is not, this chapter skip was intentaional on part of the author to note that
+        # time was skipped
         if chapter_title == "Subordination 6.12":
-            return "Subordination 6.11"
+            pass
+            # return "Subordination 6.11"
         return chapter_title
 
 def update_arc_chapter(
